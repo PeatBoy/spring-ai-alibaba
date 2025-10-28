@@ -18,6 +18,7 @@ package com.alibaba.cloud.ai.graph.agent.node;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.RunnableConfig;
 import com.alibaba.cloud.ai.graph.action.NodeActionWithConfig;
+import com.alibaba.cloud.ai.graph.agent.structured.StructuredOutputIntegration;
 import com.alibaba.cloud.ai.graph.serializer.AgentInstructionMessage;
 import com.alibaba.cloud.ai.graph.utils.TypeRef;
 import com.alibaba.cloud.ai.graph.agent.interceptor.ModelInterceptor;
@@ -32,10 +33,10 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
-
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -172,6 +173,8 @@ public class AgentLlmNode implements NodeActionWithConfig {
 				updatedState.put(this.outputKey, responseOutput);
 			}
 
+			StructuredOutputIntegration.processStructuredOutput(updatedState, responseOutput, outputSchema);
+
 			return updatedState;
 		}
 	}
@@ -242,8 +245,15 @@ public class AgentLlmNode implements NodeActionWithConfig {
 				.internalToolExecutionEnabled(false)
 				.build();
 
+		ChatOptions structuredOutputOptions = StructuredOutputIntegration.prepareStructuredOutputOptions(
+			outputSchema,
+			toolCallingChatOptions,
+			filteredToolCallbacks,
+			chatClient
+		);
+
 		ChatClient.ChatClientRequestSpec chatClientRequestSpec = chatClient.prompt()
-				.options(toolCallingChatOptions)
+				.options(structuredOutputOptions)
 				.messages(modelRequest.getMessages())
 				.advisors(advisors);
 
